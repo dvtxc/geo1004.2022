@@ -1,4 +1,7 @@
+# Reading the .obj file
 
+
+# General Instructions
 To compile and run:
 
     $ mkdir build
