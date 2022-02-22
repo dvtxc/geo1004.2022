@@ -1,3 +1,33 @@
+/*
++------------------------------------------------------------------------------+
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|  _____________ ______  ___  ____   ___  ___  ___  ___    __         ___  ___ |
+| / ___/ __/ __ <  / _ \/ _ \/ / /  |_  |/ _ \|_  ||_  |  / / _    __/ _ \|_  ||
+|/ (_ / _// /_/ / / // / // /_  _/ / __// // / __// __/_ / _ \ |/|/ / // / __/ |
+|\___/___/\____/_/\___/\___/ /_/(_)____/\___/____/____(_)_//_/__,__/\___/____/ |
+|                                                                              |
+|                                  __       __                                 |
+|                                 / /  ___ / /__                               |
+|                                / _ \/ -_) / _ \                              |
+|                               /_//_/\__/_/ .__/                              |
+|                                         /_/                                  |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
+|                                                                              |
++------------------------------------------------------------------------------+
++------------------------------------------------------------------------------+
+|                                                                              |
+|                                 Hugo Ledoux                                  |
+|                             h.ledoux@tudelft.nl                              |
+|                                  2022-02-22                                  |
+|                                                                              |
++------------------------------------------------------------------------------+
+*/
 
 #include <iostream>
 #include <fstream>
@@ -6,9 +36,12 @@
 
 using json = nlohmann::json;
 
+
+
 int   get_no_roof_surfaces(json &j);
 void  list_all_vertices(json& j);
 void  visit_roofsurfaces(json &j);
+
 
 
 
@@ -56,6 +89,8 @@ int main(int argc, const char * argv[]) {
 }
 
 
+// Visit every 'RoofSurface' in the CityJSON model and output its geometry (the arrays of indices)
+// Useful to learn to visit the geometry boundaries and at the same time check their semantics.
 void visit_roofsurfaces(json &j) {
   for (auto& co : j["CityObjects"].items()) {
     for (auto& g : co.value()["geometry"]) {
@@ -74,6 +109,7 @@ void visit_roofsurfaces(json &j) {
 }
 
 
+// Returns the number of 'RooSurface' in the CityJSON model
 int get_no_roof_surfaces(json &j) {
   int total = 0;
   for (auto& co : j["CityObjects"].items()) {
@@ -93,6 +129,8 @@ int get_no_roof_surfaces(json &j) {
 }
 
 
+// CityJSON files have their vertices compressed: https://www.cityjson.org/specs/1.1.1/#transform-object
+// this function visits all the surfaces and print the (x,y,z) coordinates of each vertex encountered
 void list_all_vertices(json& j) {
   for (auto& co : j["CityObjects"].items()) {
     std::cout << "= CityObject: " << co.key() << std::endl;
