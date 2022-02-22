@@ -13,6 +13,8 @@ It also reads the faces and creates the faces with references to the vertices an
 ## Creating g-map
 1. Loop through every face
 2. Construct darts from a single face
+3. to implement: create ``std::unordered_map`` for vertices and create 0 cell table
+4. to implement: create unique edges
 
 ## Data structure
 The data in ``Dart`` is subdivided into a **combinatorial** and an **embedding** part:

@@ -11,7 +11,7 @@
 bool read_obj(std::string filepath, std::vector<Vertex>& vertices, std::vector<Face>& faces);
 
 // Function to construct darts from a single face
-std::vector<Dart> construct_darts_from_face(Face& face);
+std::vector<Dart*> construct_darts_from_face(Face& face);
 
 int main(int argc, const char * argv[]) {
     std::string file_in = "/home/ravi/git/geo1004.2022/hw/01/data/torus.obj";
@@ -46,7 +46,7 @@ int main(int argc, const char * argv[]) {
     // Go through every face
     for(Face& face : faces) {
 
-        std::vector<Dart> face_darts = construct_darts_from_face(face);
+        std::vector<Dart*> face_darts = construct_darts_from_face(face);
 
     }
 
@@ -140,35 +140,38 @@ bool read_obj(std::string filepath, std::vector<Vertex>& vertices, std::vector<F
  *  darts   vector of darts belonging to a single face
  *
  */
-std::vector<Dart> construct_darts_from_face(Face& face) {
+std::vector<Dart*> construct_darts_from_face(Face& face) {
     size_t num_vertices = face.points.size();
 
     // Darts of this face
-    std::vector<Dart> face_darts(num_vertices * 2);
+    std::vector<Dart*> face_darts(num_vertices * 2, NULL);
 
     // Go through every vertex
-    for (size_t i = 0; i < num_vertices; i += 2) {
+    for (size_t i = 0; i < num_vertices; ++i) {
 
         // Create two darts
-        face_darts.emplace_back();
-        face_darts.emplace_back();
+        Dart* dart_prev = new Dart(); // Dart pointing to the "previous" (clockwise)
+        Dart* dart_next = new Dart(); // Dart pointing to the "next" (counter-clockwise)
 
         // store 0-cell
-        face_darts[i].cells[0] = face.points[i];
-        face_darts[i+1].cells[0] = face.points[i+1];
+        dart_prev->cells[0] = face.points[i];
+        dart_next->cells[0] = face.points[i];
 
         // store 2-cell
-        face_darts[i].cells[2] = &face;
-        face_darts[i+1].cells[2] = &face;
+        dart_prev->cells[2] = &face;
+        dart_next->cells[2] = &face;
 
         //a1 involutions
-        face_darts[i].involutions[1] = &face_darts[i+1];
-        face_darts[i+1].involutions[1] = &face_darts[i];
+        dart_prev->involutions[1] = dart_next;
+        dart_next->involutions[1] = dart_prev;
     }
+
+    /*
     for (const Vertex *vertex : face.points) {
         //std::cout << vertex->point << std::endl; // Uncomment for debug
 
     }
+    */
 
     return face_darts;
 }
