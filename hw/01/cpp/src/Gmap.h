@@ -47,7 +47,13 @@ struct Dart {
 
   // cells:
   // Store the cells as a vector of pointers to these cells (either a vertex, edge, face, or volume)
-  std::vector<Cell*> cells{4, NULL};
+  //std::vector<Cell*> cells{4, NULL};
+
+  Vertex* cell_0;
+  Edge* cell_1;
+  Face* cell_2;
+
+  int id;
 
   // Constructor
     Dart() {
@@ -69,10 +75,27 @@ struct Vertex : Cell {
   Vertex(const double &x, const double &y, const double &z) : point(Point(x,y,z))
   {}
 
+  // output as string
+  std::string gen_key() {
+      // use standard output
+      std::stringstream ss;
+      ss << this->point;
+      return ss.str();
+  }
+
   // a dart incident to this Vertex:
-  // ...
+  // Convention: a dart incident to this Vertex in CCW direction
+  Dart* dart_next;
+  std::vector<Dart*> darts;
+
+  int id;
 
 };
+
+std::ostream& operator<<(std::ostream& os, const Vertex v) {
+    os << v.point;
+    return os;
+}
 
 struct Edge : Cell {
     // TODO: We could hard-code the points that define this edge or infer it from the darts...
@@ -82,12 +105,14 @@ struct Edge : Cell {
 
     // Constructor with Vertex0 and Vertex1 arguments to initialize the point member on this Edge
     Edge(Vertex &v1, Vertex &v2) {
-        std::cout << "Constructing edge with v1 = (" << v1.point.x << "," << v1.point.y << ")";
-        std::cout << " and v2 = (" << v2.point.x << "," << v2.point.y << ")" << std::endl;
+        std::cout << "Constructing Edge from v" << v1.id << ": " << v1.point << " to v" << v2.id << ": " << v2.point << std::endl;
 
         points.push_back(&v1);
         points.push_back(&v2);
     }
+
+    // A dart incident to this vertex
+    Dart* dart;
 
 
   // a dart incident to this Edge:
@@ -100,7 +125,15 @@ struct Edge : Cell {
 
         }
     }
+
+    int id;
 };
+
+// Make edge "printable" for easy debugging
+std::ostream& operator<<(std::ostream& os, const Edge e) {
+    os << "Edge: " << *(e.points[0]) << " - " << *(e.points[1]);
+    return os;
+}
 
 struct Face : Cell {
     // TODO: We could hard-code the points that define this face or infer it from the darts...
@@ -128,7 +161,7 @@ struct Face : Cell {
         points.push_back(&v3);
     }
 
-
+    int id;
 
   // a dart incident to this Face:
   // ...
