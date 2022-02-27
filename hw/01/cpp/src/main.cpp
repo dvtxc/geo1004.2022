@@ -267,9 +267,7 @@ void construct_unique_edges_vertexHash(Face& face,
             for (Dart *candidate_dart: vtx_next->darts) {
                 if (candidate_dart->involutions[0]->cell_0->gen_key() == vtx_curr->gen_key()) {
                     // found
-                    std::cout << "Back pointing dart found." << std::endl;
                     opposite_dart = candidate_dart;
-
                 }
             }
         }
@@ -277,7 +275,7 @@ void construct_unique_edges_vertexHash(Face& face,
         if (opposite_dart) {
             Edge *common_edge = opposite_dart->cell_1;
 
-            std::cout << "Common edge e" << common_edge->id << " " << *common_edge << "" << std::endl;
+            //std::cout << "Common edge e" << common_edge->id << " " << *common_edge << "" << std::endl;
 
             // Assign common edge as 1-cell to darts
             dart_next->cell_1 = common_edge;
@@ -291,23 +289,15 @@ void construct_unique_edges_vertexHash(Face& face,
 
             // add
             vtx_curr->darts.push_back(dart_next);
-            std::cout << "added vtx to umap, umap size: " << vertices_umap.size() << "" << std::endl;
-            std::cout << "added v" << vtx_curr->id << " pointing to ";
-            for (auto vd: vtx_curr->darts) {
-                std::cout << "->v" << vd->involutions[0]->cell_0->id << ", ";
-            }
-            std::cout << "\n" << std::endl;
-        } else {
 
-            std::cout << "next vtx not found" << std::endl;
+        } else {
 
             // Create edge
             Edge *edge = new Edge(*vtx_curr, *vtx_next);
             edge->dart = dart_next;
             edges.push_back(edge);
-            // TODO: debug
+
             edge->id = edges.size() - 1;
-            std::cout << "created edge e" << edge->id << "" << std::endl;
 
             // Assign edge as 1-cell to darts
             dart_next->cell_1 = edge;
@@ -318,128 +308,6 @@ void construct_unique_edges_vertexHash(Face& face,
 
             // Add vertex to umap
             vertices_umap[vtx_curr->gen_key()] = vtx_curr;
-
-            std::cout << "added vtx to umap, umap size: " << vertices_umap.size() << "" << std::endl;
-            std::cout << "added v" << vtx_curr->id << " pointing to ";
-            for (auto vd: vtx_curr->darts) {
-                std::cout << "->v" << vd->involutions[0]->cell_0->id << ", ";
-            }
-            std::cout << "\n" << std::endl;
-        }
-
-    }
-}
-
-
-void construct_unique_edges_vertexHash2(Face& face,
-                                       std::vector<Dart*> face_darts,
-                                       std::unordered_map<std::string, Vertex*>& vertices_umap,
-                                       std::vector<Edge*>& edges
-                                       ) {
-
-    // find half edges
-    for (size_t i = 0; i < face.points.size() * 2; i += 2) {
-
-        // Start in CCW direction
-        Dart* dart_next = face_darts[i+1]; // forward (CCW)
-        Vertex* vtx_curr = dart_next->cell_0;
-        Vertex* vtx_next = dart_next->involutions[0]->cell_0;
-
-        std::cout << "Start v" << vtx_curr->id << " " << *vtx_curr;
-        std::cout << ", --> To v" << vtx_next->id << " " << *vtx_next << std::endl;
-
-        //std::string vertex_key = vtx_next->gen_key();
-        if (vertices_umap.find(vtx_next->gen_key()) == vertices_umap.end()) {
-            // not found
-
-            std::cout << "next vtx not found" << std::endl;
-
-            // Create edge
-            Edge* edge = new Edge(*vtx_curr, *vtx_next);
-            edge->dart = dart_next;
-            edges.push_back(edge);
-            // TODO: debug
-            edge->id = edges.size() - 1;
-            std::cout << "created edge e" << edge->id << "" << std::endl;
-
-            // Assign edge as 1-cell to darts
-            dart_next->cell_1 = edge;
-            dart_next->involutions[0]->cell_1 = edge;
-
-            // Set incident dart of this vertex, CCW in the current face
-            if (vertices_umap.find(vtx_curr->gen_key()) == vertices_umap.end()) vtx_curr->dart_next = dart_next;
-
-            // Add vertex to umap
-            vertices_umap[vtx_curr->gen_key()] = vtx_curr;
-
-            std::cout << "constructed edge, ";
-            std::cout << "added v" << vtx_curr->id << " pointing to v" << vtx_curr->dart_next->involutions[0]->cell_0->id << ", added vtx to umap. umap size: " << vertices_umap.size() << "\n" << std::endl;
-
-        } else {
-            // The "next" vertex is found in the umap. Check if it its curretly stored incident dart points back to our
-            // current vertex and call this the candidate current vertex.
-            // Recall: in other face also CCW.
-            Vertex* candidate_vtx_curr = vtx_next->dart_next->involutions[0]->cell_0;
-
-            std::cout << "Other vtx found in umap, pointing back to v" << candidate_vtx_curr->id << " = " << *candidate_vtx_curr << std::endl;
-
-            // Check if candidate vertex matches current vertex
-            if (vtx_curr->gen_key() == candidate_vtx_curr->gen_key()) {
-                // The found next vertex should already have an incident dart on the other side of the edge
-                Dart* opposite_dart = vtx_next->dart_next;
-                Edge* common_edge = opposite_dart->cell_1;
-
-                std::cout << "Common edge e" << common_edge->id << " " << *common_edge << "" << std::endl;
-
-                // Assign common edge as 1-cell to darts
-                dart_next->cell_1 = common_edge;
-                dart_next->involutions[0]->cell_1 = common_edge;
-
-                // Assign a2 involutions;
-                dart_next->involutions[2] = opposite_dart->involutions[0];
-                dart_next->involutions[2]->involutions[2] = dart_next;
-                dart_next->involutions[0]->involutions[2] = opposite_dart;
-                opposite_dart->involutions[2] = dart_next->involutions[0];
-
-                // Reassign incident dart, to point to the next boundary edge, e.g. turn "outwards"
-                std::cout << "v" << vtx_next->id << " dart points to v" << vtx_next->dart_next->involutions[0]->cell_0->id;
-                Dart* start = vtx_next->dart_next;
-                while (vtx_next->dart_next->involutions[2]) {
-                    vtx_next->dart_next = vtx_next->dart_next->involutions[2]->involutions[1];
-                    if (vtx_next->dart_next == start) break; // went around vtx
-                }
-                std::cout << ", after turning check: points to v" << vtx_next->dart_next->involutions[0]->cell_0->id << "" << std::endl;
-
-                std::cout << "v" << vtx_curr->id << " dart points to v" << vtx_curr->dart_next->involutions[0]->cell_0->id;
-                start = vtx_curr->dart_next;
-                while (vtx_curr->dart_next->involutions[2]) {
-                    vtx_curr->dart_next = vtx_curr->dart_next->involutions[2]->involutions[1];
-                    if (vtx_curr->dart_next == start) break;
-                }
-                std::cout << ", after turning check: points to v" << vtx_curr->dart_next->involutions[0]->cell_0->id << "\n" << std::endl;
-
-
-            } else {
-
-                std::cout << "pointing back somewhere else";
-
-                // Create edge
-                Edge* edge = new Edge(*vtx_curr, *vtx_next);
-                edge->dart = dart_next;
-                edges.push_back(edge);
-                // TODO: debug
-                edge->id = edges.size() - 1;
-                std::cout << "created edge e" << edge->id << "" << std::endl;
-
-                // Assign edge as 1-cell to darts
-                dart_next->cell_1 = edge;
-                dart_next->involutions[0]->cell_1 = edge;
-
-                vtx_curr->dart_next = dart_next;
-                //vertices_umap[vtx_curr->gen_key()] = vtx_curr;
-
-                std::cout << "v" << vtx_curr->id << " points to v" << vtx_curr->dart_next->involutions[0]->cell_0->id << ", v umap size: " << vertices_umap.size() << "\n" << std::endl;
-            }
 
         }
 
