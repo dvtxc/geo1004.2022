@@ -16,16 +16,11 @@ bool read_obj(std::string filepath, std::vector<Vertex>& vertices, std::vector<F
 // Function to construct darts from a single face
 std::vector<Dart*> construct_darts_from_face(Face& face, std::unordered_map<std::string, Vertex*>& vertices_umap, std::vector<Edge*>& edges);
 
-// Function to find half edge twins
+// Function to find unique edges with the help of the vertices umap
 void construct_unique_edges_vertexHash(Face& face,
                                        std::vector<Dart*> face_darts,
                                        std::unordered_map<std::string, Vertex*>& vertices_umap,
                                        std::vector<Edge*>& edges);
-
-void construct_unique_edges_vertexHash2(Face& face,
-                                        std::vector<Dart*> face_darts,
-                                        std::unordered_map<std::string, Vertex*>& vertices_umap,
-                                        std::vector<Edge*>& edges);
 
 void write_darts(std::string filepath, std::vector<Dart*>& darts);
 void write_vertices(std::string fpath, std::unordered_map<std::string, Vertex*>& vertices_umap);
@@ -127,7 +122,8 @@ bool read_obj(std::string filepath, std::vector<Vertex>& vertices, std::vector<F
     }
 
     // Keep track of integer vertex indices
-    int vertex_id, face_id = 0;
+    int vertex_id = 0;
+    int face_id = 0;
 
     // File is opened, read file
     std::string line;
@@ -170,7 +166,7 @@ bool read_obj(std::string filepath, std::vector<Vertex>& vertices, std::vector<F
             else faces.push_back(Face());
 
             faces.back().id = face_id;
-            face_id;
+            face_id++;
         }
 
     }
@@ -328,7 +324,8 @@ void write_darts(std::string filepath, std::vector<Dart*>& darts) {
             outfile << "d" << d->id << ";";
             outfile << d->involutions[0]->id << ";";
             outfile << d->involutions[1]->id << ";";
-            outfile << d->involutions[2]->id << ";;";
+            outfile << d->involutions[2]->id << ";";
+            outfile << ";";
             outfile << d->cell_0->id << ";";
             outfile << d->cell_1->id << ";";
             outfile << d->cell_2->id << std::endl;
