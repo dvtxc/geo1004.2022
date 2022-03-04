@@ -50,7 +50,7 @@ int main(int argc, const char * argv[]) {
         return 1;
     }
 
-  // ## Construct generalised map using the structures from Gmap.h ##
+    // ## Construct generalised map using the structures from Gmap.h ##
 
     // Store constructed darts
     std::vector<Dart*> darts;
@@ -63,12 +63,17 @@ int main(int argc, const char * argv[]) {
     std::unordered_map<std::string, Vertex*> vertices_umap;
 
     // Construct darts
+    std::vector<Dart*> face_darts;
+
     // Go through every face
     for(Face& face : faces) {
         // Get darts belonging to face, including:
         // a0 and a1 involutions
         // 0-cell and 2-cell
-        std::vector<Dart*> face_darts = construct_darts_from_face(face, vertices_umap, edges);
+        face_darts = construct_darts_from_face(face, vertices_umap, edges);
+
+        // Store all darts of this face. We will access it later again.
+        face.darts = face_darts;
 
         // Append to darts
         darts.insert(darts.end(), face_darts.begin(), face_darts.end());
@@ -80,21 +85,105 @@ int main(int argc, const char * argv[]) {
         }
     }
 
-    // Construct unique edges
-    //for (Dart *dart : darts) {
-    //}
 
-    std::string file_out = "C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\vertices.csv";
-    write_vertices(file_out, vertices_umap);
-    write_edges("C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\edges.csv", edges);
-    write_darts("C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\darts.csv", darts);
+    // ## Output generalised map to CSV ##
+    write_vertices(R"(..\data\vertices.csv)", vertices_umap);
+    write_edges(R"(..\data\edges.csv)", edges);
+    write_darts(R"(..\data\darts.csv)", darts);
 
-  
-  // ## Output generalised map to CSV ##
+    // -- Dimi code
+    for (Face& face : faces) {
+        face_darts = face.darts;
 
-  // ## Create triangles from the darts ##
 
-  // ## Write triangles to obj ##
+    }
+    //
+
+
+    // ## Create triangles from the darts ##
+    // create vector "new_faces" where the triangles will be stored
+    std::vector<Face*> new_faces;
+    std::vector<Vertex> new_vertices = vertices;
+
+    for(Face& face : faces) {
+        std::vector<Dart *> face_darts = construct_darts_from_face(face, vertices_umap, edges);
+
+        // use function barycenter for the faces to compute the barycenter coordinates of the face
+        Point vp = face.barycenter(*face.points[0], *face.points[1], *face.points[2], *face.points[3]);
+        const double vp_x =  vp.x;
+        const double vp_y =  vp.y;
+        const double vp_z =  vp.z;
+        // store barycenter of the faces in vertex cp
+        Vertex cp = Vertex(vp_x, vp_y, vp_z);
+        new_vertices.push_back(cp);
+
+        // store the id of the faces
+        std::vector<int> face_edges_id;
+        std::vector<Vertex> barycenter_edges;
+
+        for(Dart*& dart: face_darts) {
+            // store the darts of an edge
+            Edge edge_dart = *dart->cell_1;
+            // find id of the dart of the edge
+            int id = edge_dart.id;
+
+            if (std::find(face_edges_id.begin(), face_edges_id.end(), id) != face_edges_id.end()) {
+                //pass
+            } else {
+                face_edges_id.push_back(id);
+                // find the two vertices (vi and vj) of the edge
+                Vertex vi = *dart->cell_1->points[0];
+                Vertex vj = *dart->cell_1->points[1];
+                // compute the barycenter point of the edges with vertices vi and vj
+                Point vij = edge_dart.barycenter(vi, vj);
+
+                // store the x,y,z values for the barycenter point at the edge
+                const double vij_x =  vij.x;
+                const double vij_y =  vij.y;
+                const double vij_z =  vij.z;
+                // convert the x,y,z values to a vertex cij which contains the barycenter point of the edge
+                Vertex cij = Vertex(vij_x, vij_y, vij_z);
+                new_vertices.push_back(cij); //Naar kijken!
+
+
+                // create two triangles (face1 and face2)
+                // face1 consists out of vi (original vertex of the face), cij (barycenter vertex of the edge), cp (barycenter vertex of the face)
+                Face face1 = Face(vi, cij, cp);
+                std::cout << vi.id << " " << cij << " " << cp << std::endl;
+                // face2 consists out of vj (original vertex of the face), (barycenter vertex of the face), cij (barycenter vertex of the edge)
+                Face face2 = Face(vj, cp, cij);
+                std::cout << vj.id << " " << cp << " " << cij << std::endl;
+
+                // store both created faces within the new_faces vector
+                new_faces.push_back(&face1);
+                new_faces.push_back(&face2);
+
+            }
+
+        }
+
+    }
+
+    std::string filepath = "C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\triangulated.obj";
+    size_t num_triangles = new_faces.size();
+    std::cout << "--- Writing " << num_triangles << " triangles. ---" << std::endl;
+    std::cout << "# Output file path: " << filepath << std::endl;
+    std::ofstream outfile("" + filepath,std::ofstream::out);
+    std::cout << new_vertices.size() << std::endl;
+    if (outfile.is_open()) {
+        int i = 0;
+        for (auto v: new_vertices) {
+            v.id = i;
+            i++;
+            outfile << "v " << v.point.x << " " << v.point.y << " " << v.point.z << std::endl;
+        }
+
+        for (auto f: new_faces){
+            outfile << "f " << *f->points[0] << " " << *f->points[1] << " " << *f->points[2] << std::endl; //werkt niet
+        }
+    }
+
+    //write_triangles("C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\triangulated.obj", new_vertices, new_faces);
   
   return 0;
 }

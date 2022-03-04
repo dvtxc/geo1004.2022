@@ -120,7 +120,7 @@ struct Edge : Cell {
 
   // function to compute the barycenter for this Edge (needed for triangulation output):
   // Point barycenter() {}
-    Point barycenter() {
+  Point barycenter(Vertex vertex, Vertex vertex1) {
         if (!points.empty()) {
 
         }
@@ -163,12 +163,39 @@ struct Face : Cell {
 
     int id;
 
-  // a dart incident to this Face:
-  // ...
+    // a dart incident to this Face:
+    // Store all darts of the face in this vector, even though we only need one.
+    std::vector<Dart*> darts;
 
   // function to compute the barycenter for this Face (needed for triangulation output):
   // Point barycenter() {}
-    Point barycenter() {
+    Point barycenter(Vertex &v0, Vertex &v1, Vertex &v2, Vertex &v3) {
+        if (!points.empty()) {
+
+          float x0 = v0.point.x;
+          float x1 = v1.point.x;
+          float x2 = v2.point.x;
+          float x3 = v3.point.x;
+
+          float y0 = v0.point.y;
+          float y1 = v1.point.y;
+          float y2 = v2.point.y;
+          float y3 = v3.point.y;
+
+          float z0 = v0.point.z;
+          float z1 = v1.point.z;
+          float z2 = v2.point.z;
+          float z3 = v3.point.z;
+
+          float Cx = (x0+x1+x2+x3)*0.25;
+          float Cy = (y0+y1+y2+y3)*0.25;
+          float Cz = (z0+z1+z2+z3)*0.25;
+
+          Point p = Point(Cx, Cy, Cz);
+
+          return p;
+
+        }
 
     }
 
