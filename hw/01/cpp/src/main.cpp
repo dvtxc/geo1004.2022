@@ -23,15 +23,22 @@ void construct_unique_edges_vertexHash(Face& face,
                                        std::vector<Edge*>& edges);
 
 void triangulate_face(Face& face,
-                      std::vector<Vertex>& new_vertices,
+                      std::unordered_map<std::string, Vertex*>& vertices_umap,
                       std::vector<Face>& new_faces,
-                      int& num_orig_vtx);
+                      int& num_orig_vtx,
+                      int& num_orig_faces);
 
 void write_darts(std::string filepath, std::vector<Dart*>& darts);
 void write_vertices(std::string fpath, std::unordered_map<std::string, Vertex*>& vertices_umap);
 void write_edges(std::string filepath, std::vector<Edge*>& edges);
+void write_faces(std::string filepath, std::vector<Face>& faces);
+void write_volumes(std::string filepath, std::vector<Volume>& volumes);
+
+void write_obj(std::string filepath, std::vector<std::pair<int, Vertex*>>& vertices_sorted, std::vector<Face>& new_faces);
+
 
 int main(int argc, const char * argv[]) {
+    /*
     std::string file_in = "/home/ravi/git/geo1004.2022/hw/01/data/torus.obj";
     std::string file_out_obj = "/home/ravi/git/geo1004.2022/hw/01/data/torus_triangulated.obj";
     std::string file_out_csv_d = "/home/ravi/git/geo1004.2022/hw/01/data/torus_darts.csv";
@@ -39,9 +46,18 @@ int main(int argc, const char * argv[]) {
     std::string file_out_csv_1 = "/home/ravi/git/geo1004.2022/hw/01/data/torus_edges.csv";
     std::string file_out_csv_2 = "/home/ravi/git/geo1004.2022/hw/01/data/torus_faces.csv";
     std::string file_out_csv_3 = "/home/ravi/git/geo1004.2022/hw/01/data/torus_volume.csv";
+    */
+
+    std::string file_in = "../../data/torus.obj";
+    std::string file_out_obj = "../../data/torus_triangulated.obj";
+    std::string file_out_csv_d = "../../data/torus_darts.csv";
+    std::string file_out_csv_0 = "../../data/torus_vertices.csv";
+    std::string file_out_csv_1 = "../../data/torus_edges.csv";
+    std::string file_out_csv_2 = "../../data/torus_faces.csv";
+    std::string file_out_csv_3 = "../../data/torus_volume.csv";
 
     // ## Read OBJ file ##
-    file_in = "C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\cube.obj";
+    //file_in = R"(C:\dev\geo\geo1004\geo1004.2022\hw\01\data\torus.obj)";
 
     // Store loaded vertices in this vector
     std::vector<Vertex> vertices;
@@ -49,11 +65,17 @@ int main(int argc, const char * argv[]) {
     // Store loaded faces in this vector
     std::vector<Face> faces;
 
+    // Store volume
+    std::vector<Volume> volumes;
+
     // Read file
     if (!read_obj(file_in, vertices, faces)) {
         std::cerr << "Could not read input file." << std::endl;
         return 1;
     }
+
+    // Store "dummy" volume
+    volumes.emplace_back();
 
     // ## Construct generalised map using the structures from Gmap.h ##
 
@@ -90,121 +112,45 @@ int main(int argc, const char * argv[]) {
         }
     }
 
+    // Fill "dummy" volume
+    volumes[0].dart = darts[0];
+    volumes[0].id = 0;
 
     // ## Output generalised map to CSV ##
-    write_vertices(R"(..\data\vertices.csv)", vertices_umap);
-    write_edges(R"(..\data\edges.csv)", edges);
-    write_darts(R"(..\data\darts.csv)", darts);
+    write_vertices(file_out_csv_0, vertices_umap);
+    write_edges(file_out_csv_1, edges);
+    write_faces(file_out_csv_2, faces);
+    write_volumes(file_out_csv_3, volumes);
+    write_darts(file_out_csv_d, darts);
 
     // -- Dimi code
 
     // Store new triangulated faces in new vector
     std::vector<Face> new_faces;
 
-    // Store new vertices in a new vector, because if we would push new triangulated vertices to the original vector, we
-    // might invalidate references to those vertices upon memory reallocation.
-    std::vector<Vertex> new_vertices;
-    int num_orig_vtx = vertices.size();
+    // Keep track of umap size
+    int num_vtx = vertices_umap.size();
+    int num_orig_faces = faces.size();
 
-    for (Face& face : faces) {
-
-        triangulate_face(face, new_vertices, new_faces, num_orig_vtx);
-
-    }
-    //
-
-
-    // ## Create triangles from the darts ##
-    // create vector "new_faces" where the triangles will be stored
-    //std::vector<Face*> new_faces;
-    /*std::vector<Vertex> new_vertices = vertices;
-
-    for(Face& face : faces) {
-        std::vector<Dart *> face_darts = construct_darts_from_face(face, vertices_umap, edges);
-
-        // use function barycenter for the faces to compute the barycenter coordinates of the face
-        //Point vp = face.barycenter(*face.points[0], *face.points[1], *face.points[2], *face.points[3]);
-        const double vp_x =  vp.x;
-        const double vp_y =  vp.y;
-        const double vp_z =  vp.z;
-        // store barycenter of the faces in vertex cp
-        Vertex cp = Vertex(vp_x, vp_y, vp_z);
-        new_vertices.push_back(cp);
-
-        // store the id of the faces
-        std::vector<int> face_edges_id;
-        std::vector<Vertex> barycenter_edges;
-
-        for(Dart*& dart: face_darts) {
-            // store the darts of an edge
-            Edge edge_dart = *dart->cell_1;
-            // find id of the dart of the edge
-            int id = edge_dart.id;
-
-            if (std::find(face_edges_id.begin(), face_edges_id.end(), id) != face_edges_id.end()) {
-                //pass
-            } else {
-                face_edges_id.push_back(id);
-                // find the two vertices (vi and vj) of the edge
-                Vertex vi = *dart->cell_1->points[0];
-                Vertex vj = *dart->cell_1->points[1];
-                // compute the barycenter point of the edges with vertices vi and vj
-                Point vij = edge_dart.barycenter(vi, vj);
-
-                // store the x,y,z values for the barycenter point at the edge
-                const double vij_x =  vij.x;
-                const double vij_y =  vij.y;
-                const double vij_z =  vij.z;
-                // convert the x,y,z values to a vertex cij which contains the barycenter point of the edge
-                Vertex cij = Vertex(vij_x, vij_y, vij_z);
-                new_vertices.push_back(cij); //Naar kijken!
-
-
-                // create two triangles (face1 and face2)
-                // face1 consists out of vi (original vertex of the face), cij (barycenter vertex of the edge), cp (barycenter vertex of the face)
-                Face face1 = Face(vi, cij, cp);
-                std::cout << vi.id << " " << cij << " " << cp << std::endl;
-                // face2 consists out of vj (original vertex of the face), (barycenter vertex of the face), cij (barycenter vertex of the edge)
-                Face face2 = Face(vj, cp, cij);
-                std::cout << vj.id << " " << cp << " " << cij << std::endl;
-
-                // store both created faces within the new_faces vector
-                new_faces.push_back(&face1);
-                new_faces.push_back(&face2);
-
-            }
-
-        }
-
-    }
-*/
-
-    std::string filepath = R"(C:\dev\geo\geo1004\geo1004.2022\hw\01\data\triangulated.obj)";
-    size_t num_triangles = new_faces.size();
-    std::cout << "--- Writing " << num_triangles << " triangles. ---" << std::endl;
-    std::cout << "# Output file path: " << filepath << std::endl;
-    std::ofstream outfile("" + filepath,std::ofstream::out);
-    std::cout << new_vertices.size() << std::endl;
-    if (outfile.is_open()) {
-
-        for (auto v: vertices) { outfile << "v " << v.point.x << " " << v.point.y << " " << v.point.z << std::endl; }
-
-        for (auto v: new_vertices) {  outfile << "v " << v.point.x << " " << v.point.y << " " << v.point.z << std::endl;  }
-
-        for (Face f: new_faces) {
-            outfile << "v";
-
-            // go through all points of the face
-            for (Vertex* fp : f.points) {
-                outfile << " " << fp->id + 1; // increment by 1, as .obj file refers to lines that start at 1
-            }
-
-            outfile << std::endl;
-        }
-
+    // Bisect edges. To prevent pointer invalidation when adding vertices on the fly, just continue working with the umap.
+    for (Edge* edge : edges) {
+        // bisect all edges and add vertices
+        Vertex* vtx = edge->barycenter();
+        vtx->id = num_vtx++;
+        vertices_umap[vtx->gen_key()] = vtx;
     }
 
-    //write_triangles("C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\triangulated.obj", new_vertices, new_faces);
+    // Triangulate all faces
+    for (Face &face: faces) triangulate_face(face, vertices_umap, new_faces, num_vtx, num_orig_faces);
+
+    // Before writing, sort vertices umap. .obj can only reference using line numbers.
+    std::vector<std::pair<int, Vertex*>> vertices_sorted;
+    for (auto vp : vertices_umap) {
+        vertices_sorted.emplace_back(vp.second->id, vp.second);
+    }
+    std::sort(vertices_sorted.begin(), vertices_sorted.end());
+
+    write_obj(file_out_obj, vertices_sorted, new_faces);
   
   return 0;
 }
@@ -364,8 +310,9 @@ void construct_unique_edges_vertexHash(Face& face,
         Vertex* vtx_curr = dart_next->cell_0;
         Vertex* vtx_next = dart_next->involutions[0]->cell_0;
 
-        std::cout << "Start v" << vtx_curr->id << " " << *vtx_curr;
-        std::cout << " --> To v" << vtx_next->id << " " << *vtx_next << std::endl;
+        // UNCOMMENT TO DEBUG
+        //std::cout << "Start v" << vtx_curr->id << " " << *vtx_curr;
+        //std::cout << " --> To v" << vtx_next->id << " " << *vtx_next << std::endl;
 
         Dart* opposite_dart = nullptr;
 
@@ -420,39 +367,46 @@ void construct_unique_edges_vertexHash(Face& face,
     }
 }
 
+
 void triangulate_face(Face& face,
-                      std::vector<Vertex>& new_vertices,
+                      std::unordered_map<std::string, Vertex*>& vertices_umap,
                       std::vector<Face>& new_faces,
-                      int& num_orig_vtx) {
+                      int& num_orig_vtx,
+                      int& num_orig_faces) {
 
     std::vector<Dart*> face_darts = face.darts;
 
+    // UNCOMMENT TO DEBUG
+    //std::cout << "triangulating: " << face << std::endl;
+
     // Calculate face barycenter
     Point vp = face.barycenter();
-    Vertex cp = Vertex(vp.x, vp.y, vp.z);
-    new_vertices.push_back(cp);
-    new_vertices.back().id = num_orig_vtx + new_vertices.size(); // size() does end() - begin(), so it should be fast, right?
+    Vertex* cp = new Vertex(vp.x, vp.y, vp.z);
+    cp->id = num_orig_vtx++;
+    vertices_umap[cp->gen_key()] = cp;
 
     for (size_t i = 0; i < face_darts.size(); i += 2) {
         // Take the dart that is pointing in CCW direction, thus [1], [3], etc ...
-        Dart *dart;
-        dart = face_darts[i + 1];
+        Dart* dart = face_darts[i + 1];
 
-        // Edge barycenter
-        Point edge_bc = dart->cell_1->barycenter();
-        Vertex edge_bc_vtx = Vertex(edge_bc.x, edge_bc.y, edge_bc.z);
-        edge_bc_vtx.id = num_orig_vtx + new_vertices.size();
-        new_vertices.push_back(edge_bc_vtx);
+        // Edge barycenter (function will reuse previously calculated and stored barycenter)
+        Vertex* edge_bc_vtx = dart->cell_1->barycenter();
 
         // Create triangle 1
-        Face face1 = Face(*dart->cell_0, edge_bc_vtx, cp);
-        //face1.id = new_faces.size();
+        Face face1 = Face(*dart->cell_0, *edge_bc_vtx, *cp);
+        face1.id = num_orig_faces + new_faces.size(); // size() does end() - begin(), so it should be fast, right?
         new_faces.push_back(face1);
 
+        // UNCOMMENT TO DEBUG
+        //std::cout << "triangle " << i << "  --> " << face1 << std::endl;
+
         // Create triangle 2
-        Face face2 = Face(edge_bc_vtx, *dart->involutions[0]->cell_0, cp);
-        //face2.id = new_faces.size();
+        Face face2 = Face(*edge_bc_vtx, *dart->involutions[0]->cell_0, *cp);
+        face2.id = num_orig_faces + new_faces.size();
         new_faces.push_back(face2);
+
+        // UNCOMMENT TO DEBUG
+        //std::cout << "triangle " << i+1 << "  --> " << face2 << std::endl;
     }
 
 }
@@ -487,9 +441,8 @@ void write_darts(std::string filepath, std::vector<Dart*>& darts) {
 }
 
 void write_vertices(std::string filepath, std::unordered_map<std::string, Vertex*>& vertices_umap) {
-    size_t numVertexes = vertices_umap.size();
 
-    std::cout << "--- Writing " << numVertexes << " vertices. ---" << std::endl;
+    std::cout << "--- Writing " << vertices_umap.size() << " vertices. ---" << std::endl;
     std::cout << "# Output file path: " << filepath << std::endl;
 
     std::ofstream outfile("" + filepath,std::ofstream::out);
@@ -510,9 +463,8 @@ void write_vertices(std::string filepath, std::unordered_map<std::string, Vertex
 }
 
 void write_edges(std::string filepath, std::vector<Edge*>& edges) {
-    size_t num_edges = edges.size();
 
-    std::cout << "--- Writing " << num_edges << " edges. ---" << std::endl;
+    std::cout << "--- Writing " << edges.size() << " edges. ---" << std::endl;
     std::cout << "# Output file path: " << filepath << std::endl;
 
     std::ofstream outfile("" + filepath,std::ofstream::out);
@@ -520,7 +472,7 @@ void write_edges(std::string filepath, std::vector<Edge*>& edges) {
         outfile << "id;dart;desc" << std::endl;
 
         for (auto e : edges) {
-            outfile << "e" << e->id << "; " << e->dart << "; " << *e << std::endl;
+            outfile << "e" << e->id << "; " << e->dart << std::endl;
         }
 
         outfile.close();
@@ -528,5 +480,73 @@ void write_edges(std::string filepath, std::vector<Edge*>& edges) {
         std::cout << "# Finished writing." << std::endl;
     } else {
         std::cout << "## Unable to open file!" << std::endl;
+    }
+}
+
+void write_faces(std::string filepath, std::vector<Face>& faces) {
+
+    std::cout << "--- Writing " << faces.size() << " faces. ---" << std::endl;
+    std::cout << "# Output file path: " << filepath << std::endl;
+
+    std::ofstream outfile("" + filepath,std::ofstream::out);
+    if (outfile.is_open()) {
+        outfile << "id;dart" << std::endl;
+
+        for (Face f : faces) {
+            outfile << "e" << f.id << "; " << f.darts[0] << std::endl;
+        }
+
+        outfile.close();
+
+        std::cout << "# Finished writing." << std::endl;
+    } else {
+        std::cout << "## Unable to open file!" << std::endl;
+    }
+}
+
+void write_volumes(std::string filepath, std::vector<Volume>& volumes) {
+
+    std::cout << "--- Writing " << volumes.size() << " volumes. ---" << std::endl;
+    std::cout << "# Output file path: " << filepath << std::endl;
+
+    std::ofstream outfile("" + filepath,std::ofstream::out);
+    if (outfile.is_open()) {
+        outfile << "id;dart" << std::endl;
+
+        for (Volume v : volumes) {
+            outfile << "o" << v.id << "; " << v.dart << std::endl;
+        }
+
+        outfile.close();
+
+        std::cout << "# Finished writing." << std::endl;
+    } else {
+        std::cout << "## Unable to open file!" << std::endl;
+    }
+}
+
+void write_obj(std::string filepath, std::vector<std::pair<int, Vertex*>>& vertices_sorted, std::vector<Face>& new_faces) {
+
+    std::cout << "--- Writing " << vertices_sorted.size() << " vertices, " << new_faces.size() << " polygons. ---" << std::endl;
+    std::cout << "# Output file path: " << filepath << std::endl;
+
+    std::ofstream outfile("" + filepath,std::ofstream::out);
+    if (outfile.is_open()) {
+        for (auto v: vertices_sorted) {
+            outfile << "v " << v.second->point.x << " " << v.second->point.y << " " << v.second->point.z << std::endl;
+        }
+
+        for (const Face& f: new_faces) {
+            outfile << "f";
+            // go through all points of the face
+            for (Vertex* fp : f.points) {
+                outfile << " " << fp->id + 1; // increment by 1, as .obj file refers to lines that start at 1
+            }
+            outfile << std::endl;
+        }
+
+        outfile.close();
+        std::cout << "# Finished writing" << std::endl;
+
     }
 }

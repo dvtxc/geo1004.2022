@@ -2,6 +2,9 @@
 
 #include "Point.h"
 
+// include iomanip to set precision --> needed to reliably compare the vertex keys
+#include <iomanip>
+
 class Cell;
 struct Point;
 struct Dart;
@@ -36,9 +39,6 @@ Then you could create and link Darts like:
   dart_a->a0 = dart_b;
 */
 
-class Cell {
-    //...
-};
 
 struct Dart {
   // involutions:
@@ -63,7 +63,7 @@ struct Dart {
 };
 
 
-struct Vertex : Cell {
+struct Vertex {
   // the coordinates of this vertex:
   Point point;
 
@@ -98,43 +98,49 @@ struct Vertex : Cell {
 };
 
 std::ostream& operator<<(std::ostream& os, const Vertex v) {
-    os << v.point;
+    os << std::fixed << std::setprecision(3) << v.point;
     return os;
 }
 
-struct Edge : Cell {
-    // TODO: We could hard-code the points that define this edge or infer it from the darts...
-    // TODO: If hard-coded, store as property points.
+struct Edge {
     // Points that make up this edge, store as vector of pointers to vertices
     std::vector<Vertex*> points;
 
     // Constructor with Vertex0 and Vertex1 arguments to initialize the point member on this Edge
     Edge(Vertex &v1, Vertex &v2) {
-        std::cout << "Constructing Edge from v" << v1.id << ": " << v1.point << " to v" << v2.id << ": " << v2.point << std::endl;
+        //std::cout << "Constructing Edge from v" << v1.id << ": " << v1.point << " to v" << v2.id << ": " << v2.point << std::endl;
 
         points.push_back(&v1);
         points.push_back(&v2);
     }
 
-    // A dart incident to this vertex
+    // A dart incident to this edge
     Dart* dart;
 
-
-  // a dart incident to this Edge:
-  // ...
+    // Store barycenters
+    Vertex* barycenter_vtx = NULL;
 
   // function to compute the barycenter for this Edge (needed for triangulation output):
   // Point barycenter() {}
-    Point barycenter() {
+    Vertex* barycenter() {
         if (points.empty()) {
-            return Point();
+            return new Vertex();
+        }
+
+        // was already calculated
+        if (barycenter_vtx) {
+            return  barycenter_vtx;
         }
 
         float px = (points[0]->x() + points[1]->x()) / 2;
         float py = (points[0]->y() + points[1]->y()) / 2;
         float pz = (points[0]->z() + points[1]->z()) / 2;
 
-        return Point(px, py, pz);
+        // Set barycenter (so we don't have to calculate it again.)
+        barycenter_vtx = new Vertex(px, py, pz);
+
+        // return barycenter
+        return barycenter_vtx;
     }
 
     int id;
@@ -146,9 +152,7 @@ std::ostream& operator<<(std::ostream& os, const Edge e) {
     return os;
 }
 
-struct Face : Cell {
-    // TODO: We could hard-code the points that define this face or infer it from the darts...
-    // TODO: If hard-coded, store as property points.
+struct Face {
     // Points that make up this face, store as vector of pointers to vertices.
     std::vector<Vertex*> points;
 
@@ -194,40 +198,22 @@ struct Face : Cell {
         return Point(Cx, Cy, Cz);
 
     }
-    /*Point barycenter(Vertex &v0, Vertex &v1, Vertex &v2, Vertex &v3) {
-        if (!points.empty()) {
 
-          float x0 = v0.point.x;
-          float x1 = v1.point.x;
-          float x2 = v2.point.x;
-          float x3 = v3.point.x;
-
-          float y0 = v0.point.y;
-          float y1 = v1.point.y;
-          float y2 = v2.point.y;
-          float y3 = v3.point.y;
-
-          float z0 = v0.point.z;
-          float z1 = v1.point.z;
-          float z2 = v2.point.z;
-          float z3 = v3.point.z;
-
-          float Cx = (x0+x1+x2+x3)*0.25;
-          float Cy = (y0+y1+y2+y3)*0.25;
-          float Cz = (z0+z1+z2+z3)*0.25;
-
-          Point p = Point(Cx, Cy, Cz);
-
-          return p;
-
-        }
-
-    }*/
 
 };
 
-struct Volume : Cell {
-  // a dart incident to this Volume:
-  // ...
+// Make face "printable" for easy debugging
+std::ostream& operator<<(std::ostream& os, const Face f) {
+    os << "Face f" << f.id << ", vertices:";
+    for (Vertex* vtx : f.points) {
+        os << "\t v" << vtx->id << " " << *vtx;
+    }
+    return os;
+}
+
+struct Volume {
+    Dart* dart;
+
+    int id;
 
 };
