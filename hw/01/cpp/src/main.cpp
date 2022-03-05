@@ -123,8 +123,6 @@ int main(int argc, const char * argv[]) {
     write_volumes(file_out_csv_3, volumes);
     write_darts(file_out_csv_d, darts);
 
-    // -- Dimi code
-
     // Store new triangulated faces in new vector
     std::vector<Face> new_faces;
 
