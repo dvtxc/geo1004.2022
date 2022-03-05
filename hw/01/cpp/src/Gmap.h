@@ -88,6 +88,11 @@ struct Vertex : Cell {
   Dart* dart_next;
   std::vector<Dart*> darts;
 
+  // Make accessing a little tidier
+  float x() const { return point.x; }
+  float y() const { return point.y; }
+  float z() const { return point.z; }
+
   int id;
 
 };
@@ -120,10 +125,16 @@ struct Edge : Cell {
 
   // function to compute the barycenter for this Edge (needed for triangulation output):
   // Point barycenter() {}
-  Point barycenter(Vertex vertex, Vertex vertex1) {
-        if (!points.empty()) {
-
+    Point barycenter() {
+        if (points.empty()) {
+            return Point();
         }
+
+        float px = (points[0]->x() + points[1]->x()) / 2;
+        float py = (points[0]->y() + points[1]->y()) / 2;
+        float pz = (points[0]->z() + points[1]->z()) / 2;
+
+        return Point(px, py, pz);
     }
 
     int id;
@@ -169,7 +180,21 @@ struct Face : Cell {
 
   // function to compute the barycenter for this Face (needed for triangulation output):
   // Point barycenter() {}
-    Point barycenter(Vertex &v0, Vertex &v1, Vertex &v2, Vertex &v3) {
+    Point barycenter() {
+        // Return empty point, when face is not fully initialized
+        if (points.empty()) {
+          return Point();
+        }
+
+        // Calculate barycenter, when face is initialized
+        float Cx = (points[0]->x() + points[1]->x() + points[2]->x() + points[3]->x()) * 0.25;
+        float Cy = (points[0]->y() + points[1]->y() + points[2]->y() + points[3]->y()) * 0.25;
+        float Cz = (points[0]->z() + points[1]->z() + points[2]->z() + points[3]->z()) * 0.25;
+
+        return Point(Cx, Cy, Cz);
+
+    }
+    /*Point barycenter(Vertex &v0, Vertex &v1, Vertex &v2, Vertex &v3) {
         if (!points.empty()) {
 
           float x0 = v0.point.x;
@@ -197,7 +222,7 @@ struct Face : Cell {
 
         }
 
-    }
+    }*/
 
 };
 

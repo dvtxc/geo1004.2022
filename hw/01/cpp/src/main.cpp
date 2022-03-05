@@ -22,6 +22,11 @@ void construct_unique_edges_vertexHash(Face& face,
                                        std::unordered_map<std::string, Vertex*>& vertices_umap,
                                        std::vector<Edge*>& edges);
 
+void triangulate_face(Face& face,
+                      std::vector<Vertex>& new_vertices,
+                      std::vector<Face>& new_faces,
+                      int& num_orig_vtx);
+
 void write_darts(std::string filepath, std::vector<Dart*>& darts);
 void write_vertices(std::string fpath, std::unordered_map<std::string, Vertex*>& vertices_umap);
 void write_edges(std::string filepath, std::vector<Edge*>& edges);
@@ -92,9 +97,18 @@ int main(int argc, const char * argv[]) {
     write_darts(R"(..\data\darts.csv)", darts);
 
     // -- Dimi code
-    for (Face& face : faces) {
-        face_darts = face.darts;
 
+    // Store new triangulated faces in new vector
+    std::vector<Face> new_faces;
+
+    // Store new vertices in a new vector, because if we would push new triangulated vertices to the original vector, we
+    // might invalidate references to those vertices upon memory reallocation.
+    std::vector<Vertex> new_vertices;
+    int num_orig_vtx = vertices.size();
+
+    for (Face& face : faces) {
+
+        triangulate_face(face, new_vertices, new_faces, num_orig_vtx);
 
     }
     //
@@ -102,14 +116,14 @@ int main(int argc, const char * argv[]) {
 
     // ## Create triangles from the darts ##
     // create vector "new_faces" where the triangles will be stored
-    std::vector<Face*> new_faces;
-    std::vector<Vertex> new_vertices = vertices;
+    //std::vector<Face*> new_faces;
+    /*std::vector<Vertex> new_vertices = vertices;
 
     for(Face& face : faces) {
         std::vector<Dart *> face_darts = construct_darts_from_face(face, vertices_umap, edges);
 
         // use function barycenter for the faces to compute the barycenter coordinates of the face
-        Point vp = face.barycenter(*face.points[0], *face.points[1], *face.points[2], *face.points[3]);
+        //Point vp = face.barycenter(*face.points[0], *face.points[1], *face.points[2], *face.points[3]);
         const double vp_x =  vp.x;
         const double vp_y =  vp.y;
         const double vp_z =  vp.z;
@@ -163,24 +177,31 @@ int main(int argc, const char * argv[]) {
         }
 
     }
+*/
 
-    std::string filepath = "C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\triangulated.obj";
+    std::string filepath = R"(C:\dev\geo\geo1004\geo1004.2022\hw\01\data\triangulated.obj)";
     size_t num_triangles = new_faces.size();
     std::cout << "--- Writing " << num_triangles << " triangles. ---" << std::endl;
     std::cout << "# Output file path: " << filepath << std::endl;
     std::ofstream outfile("" + filepath,std::ofstream::out);
     std::cout << new_vertices.size() << std::endl;
     if (outfile.is_open()) {
-        int i = 0;
-        for (auto v: new_vertices) {
-            v.id = i;
-            i++;
-            outfile << "v " << v.point.x << " " << v.point.y << " " << v.point.z << std::endl;
+
+        for (auto v: vertices) { outfile << "v " << v.point.x << " " << v.point.y << " " << v.point.z << std::endl; }
+
+        for (auto v: new_vertices) {  outfile << "v " << v.point.x << " " << v.point.y << " " << v.point.z << std::endl;  }
+
+        for (Face f: new_faces) {
+            outfile << "v";
+
+            // go through all points of the face
+            for (Vertex* fp : f.points) {
+                outfile << " " << fp->id + 1; // increment by 1, as .obj file refers to lines that start at 1
+            }
+
+            outfile << std::endl;
         }
 
-        for (auto f: new_faces){
-            outfile << "f " << *f->points[0] << " " << *f->points[1] << " " << *f->points[2] << std::endl; //werkt niet
-        }
     }
 
     //write_triangles("C:\\dev\\geo\\geo1004\\geo1004.2022\\hw\\01\\data\\triangulated.obj", new_vertices, new_faces);
@@ -397,6 +418,43 @@ void construct_unique_edges_vertexHash(Face& face,
         }
 
     }
+}
+
+void triangulate_face(Face& face,
+                      std::vector<Vertex>& new_vertices,
+                      std::vector<Face>& new_faces,
+                      int& num_orig_vtx) {
+
+    std::vector<Dart*> face_darts = face.darts;
+
+    // Calculate face barycenter
+    Point vp = face.barycenter();
+    Vertex cp = Vertex(vp.x, vp.y, vp.z);
+    new_vertices.push_back(cp);
+    new_vertices.back().id = num_orig_vtx + new_vertices.size(); // size() does end() - begin(), so it should be fast, right?
+
+    for (size_t i = 0; i < face_darts.size(); i += 2) {
+        // Take the dart that is pointing in CCW direction, thus [1], [3], etc ...
+        Dart *dart;
+        dart = face_darts[i + 1];
+
+        // Edge barycenter
+        Point edge_bc = dart->cell_1->barycenter();
+        Vertex edge_bc_vtx = Vertex(edge_bc.x, edge_bc.y, edge_bc.z);
+        edge_bc_vtx.id = num_orig_vtx + new_vertices.size();
+        new_vertices.push_back(edge_bc_vtx);
+
+        // Create triangle 1
+        Face face1 = Face(*dart->cell_0, edge_bc_vtx, cp);
+        //face1.id = new_faces.size();
+        new_faces.push_back(face1);
+
+        // Create triangle 2
+        Face face2 = Face(edge_bc_vtx, *dart->involutions[0]->cell_0, cp);
+        //face2.id = new_faces.size();
+        new_faces.push_back(face2);
+    }
+
 }
 
 void write_darts(std::string filepath, std::vector<Dart*>& darts) {
