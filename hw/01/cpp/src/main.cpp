@@ -48,13 +48,23 @@ int main(int argc, const char * argv[]) {
     std::string file_out_csv_3 = "/home/ravi/git/geo1004.2022/hw/01/data/torus_volume.csv";
     */
 
-    std::string file_in = "../../data/torus.obj";
-    std::string file_out_obj = "../../data/torus_triangulated.obj";
-    std::string file_out_csv_d = "../../data/torus_darts.csv";
-    std::string file_out_csv_0 = "../../data/torus_vertices.csv";
-    std::string file_out_csv_1 = "../../data/torus_edges.csv";
-    std::string file_out_csv_2 = "../../data/torus_faces.csv";
-    std::string file_out_csv_3 = "../../data/torus_volume.csv";
+    std::string dir;
+
+    if (argc > 1) {
+        dir = argv[1];
+        std::cout << "Root dir provided as argument: " << dir << "\n" << std::endl;
+    } else {
+        dir = "../../data/";
+        std::cout << "No root dir provided. Using " << dir << " as root directory. \n" << std::endl;
+    }
+
+    std::string file_in = dir + "torus.obj";
+    std::string file_out_obj = dir + "torus_triangulated.obj";
+    std::string file_out_csv_d = dir + "torus_darts.csv";
+    std::string file_out_csv_0 = dir + "torus_vertices.csv";
+    std::string file_out_csv_1 = dir + "torus_edges.csv";
+    std::string file_out_csv_2 = dir + "torus_faces.csv";
+    std::string file_out_csv_3 = dir + "torus_volume.csv";
 
     // ## Read OBJ file ##
     //file_in = R"(C:\dev\geo\geo1004\geo1004.2022\hw\01\data\torus.obj)";
@@ -105,7 +115,7 @@ int main(int argc, const char * argv[]) {
         // Append to darts
         darts.insert(darts.end(), face_darts.begin(), face_darts.end());
 
-        // Number the darts nicely
+        // Number the darts nicely and add the dummy volume
         for (auto dart : face_darts) {
             dart->id = num_darts;
             num_darts++;
@@ -417,17 +427,18 @@ void write_darts(std::string filepath, std::vector<Dart*>& darts) {
 
     std::ofstream outfile("" + filepath,std::ofstream::out);
     if (outfile.is_open()) {
-        outfile << "id;a0;a1;a2;a3;v;e;f" << std::endl;
+        outfile << "id;a0;a1;a2;a3;v;e;f;o" << std::endl;
 
         for (auto d : darts) {
             outfile << "d" << d->id << ";";
             outfile << d->involutions[0]->id << ";";
             outfile << d->involutions[1]->id << ";";
             outfile << d->involutions[2]->id << ";";
-            outfile << ";";
+            outfile << ";"; //a3 involution
             outfile << d->cell_0->id << ";";
             outfile << d->cell_1->id << ";";
-            outfile << d->cell_2->id << std::endl;
+            outfile << d->cell_2->id << ";";
+            outfile << "0" << std::endl; // dummy volume
         }
 
         outfile.close();
@@ -448,8 +459,7 @@ void write_vertices(std::string filepath, std::unordered_map<std::string, Vertex
         outfile << "id;dart;x;y;z" << std::endl;
 
         for (auto v : vertices_umap) {
-            outfile << "v" << v.second->id << "; " << v.second->darts[0] << "; " << v.second->point.x << "; " << v.second->point.y << "; " << v.second->point.z;
-            outfile << "; a dart going to " << v.second->darts[0]->involutions[0]->cell_0->id << std::endl;
+            outfile << "v" << v.second->id << "; " << v.second->darts[0]->id << "; " << v.second->point.x << "; " << v.second->point.y << "; " << v.second->point.z << std::endl;
         }
 
         outfile.close();
@@ -467,10 +477,10 @@ void write_edges(std::string filepath, std::vector<Edge*>& edges) {
 
     std::ofstream outfile("" + filepath,std::ofstream::out);
     if (outfile.is_open()) {
-        outfile << "id;dart;desc" << std::endl;
+        outfile << "id;dart" << std::endl;
 
         for (auto e : edges) {
-            outfile << "e" << e->id << "; " << e->dart << std::endl;
+            outfile << "e" << e->id << "; " << e->dart->id << std::endl;
         }
 
         outfile.close();
@@ -491,7 +501,7 @@ void write_faces(std::string filepath, std::vector<Face>& faces) {
         outfile << "id;dart" << std::endl;
 
         for (Face f : faces) {
-            outfile << "e" << f.id << "; " << f.darts[0] << std::endl;
+            outfile << "e" << f.id << "; " << f.darts[0]->id << std::endl;
         }
 
         outfile.close();
@@ -512,7 +522,7 @@ void write_volumes(std::string filepath, std::vector<Volume>& volumes) {
         outfile << "id;dart" << std::endl;
 
         for (Volume v : volumes) {
-            outfile << "o" << v.id << "; " << v.dart << std::endl;
+            outfile << "o" << v.id << "; " << v.dart->id << std::endl;
         }
 
         outfile.close();

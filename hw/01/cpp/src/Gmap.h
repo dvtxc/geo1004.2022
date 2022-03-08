@@ -52,6 +52,7 @@ struct Dart {
   Vertex* cell_0;
   Edge* cell_1;
   Face* cell_2;
+  Volume* cell_3;
 
   int id;
 
