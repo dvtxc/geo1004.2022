@@ -6,6 +6,7 @@
 !*.cpp
 !*.h
 !*.md
+!*.json
 
 # Specify filepatterns you want git to ignore.
 

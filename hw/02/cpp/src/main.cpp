@@ -1,32 +1,5 @@
 /*
-+------------------------------------------------------------------------------+
-|                                                                              |
-|                                                                              |
-|                                                                              |
-|                                                                              |
-|  _____________ ______  ___  ____   ___  ___  ___  ___    __         ___  ___ |
-| / ___/ __/ __ <  / _ \/ _ \/ / /  |_  |/ _ \|_  ||_  |  / / _    __/ _ \|_  ||
-|/ (_ / _// /_/ / / // / // /_  _/ / __// // / __// __/_ / _ \ |/|/ / // / __/ |
-|\___/___/\____/_/\___/\___/ /_/(_)____/\___/____/____(_)_//_/__,__/\___/____/ |
-|                                                                              |
-|                                  __       __                                 |
-|                                 / /  ___ / /__                               |
-|                                / _ \/ -_) / _ \                              |
-|                               /_//_/\__/_/ .__/                              |
-|                                         /_/                                  |
-|                                                                              |
-|                                                                              |
-|                                                                              |
-|                                                                              |
-|                                                                              |
-+------------------------------------------------------------------------------+
-+------------------------------------------------------------------------------+
-|                                                                              |
-|                                 Hugo Ledoux                                  |
-|                             h.ledoux@tudelft.nl                              |
-|                                  2022-02-22                                  |
-|                                                                              |
-+------------------------------------------------------------------------------+
+Dmitri Visser
 */
 
 #include <iostream>
@@ -34,24 +7,53 @@
 #include <string>
 #include "json.hpp"
 
+#include "orientation.h"
+
 using json = nlohmann::json;
-
-
 
 int   get_no_roof_surfaces(json &j);
 void  list_all_vertices(json& j);
-void  visit_roofsurfaces(json &j);
 
 
-
+int read_input(std::string inputfile, json& j);
 
 int main(int argc, const char * argv[]) {
 
-  //-- reading the file with nlohmann json: https://github.com/nlohmann/json  
-  std::ifstream input("../../data/twobuildings.city.json");
-  json j;
-  input >> j;
-  input.close();
+    // Hold the loaded city json object in cj
+    json cj;
+
+    // Read the city json file
+    std::string inputfile = R"(..\..\data\twobuildings.city.json)";
+    read_input(inputfile, cj);
+
+    // Go through buildings and list h_dak props
+    for (auto &bldg : cj["CityObjects"]) {
+        if (bldg["type"] == "Building") {
+            std::cout << "Building " << (std::string) bldg["attributes"]["identificatie"];
+
+            if (bldg["children"].size() == 0) {
+                std::cout << " has no child geometry." << std::endl;
+                continue;
+            }
+
+            // Has child geometry
+            auto h_maaiveld = (double) bldg["attributes"]["h_maaiveld"];
+            auto h_dak_min = (double) bldg["attributes"]["h_dak_min"];
+            auto h_dak_max = (double) bldg["attributes"]["h_dak_max"];
+
+            // Calculate number of floors
+            double height = (0.7 * h_dak_max + 0.3 * h_dak_min) - h_maaiveld;
+            int num_floors = (int) round(height / 3.0);
+
+            std::cout << " - height: " << height << ", no_floor: " << num_floors << std::endl;
+        }
+    }
+
+    //list_all_vertices(cj);
+
+  // go into floors.cpp
+  std::cout << "go into floors.cpp" << std::endl;
+  orientation_run(cj);
 
   //-- get total number of RoofSurface in the file
   // int noroofsurfaces = get_no_roof_surfaces(j);
@@ -59,11 +61,11 @@ int main(int argc, const char * argv[]) {
 
   // list_all_vertices(j);
 
-  visit_roofsurfaces(j);
+  visit_roofsurfaces(cj);
 
   //-- print out the number of Buildings in the file
   int nobuildings = 0;
-  for (auto& co : j["CityObjects"]) {
+  for (auto& co : cj["CityObjects"]) {
     if (co["type"] == "Building") {
       nobuildings += 1;
     }
@@ -71,10 +73,10 @@ int main(int argc, const char * argv[]) {
   std::cout << "There are " << nobuildings << " Buildings in the file" << std::endl;
 
   //-- print out the number of vertices in the file
-  std::cout << "Number of vertices " << j["vertices"].size() << std::endl;
+  std::cout << "Number of vertices " << cj["vertices"].size() << std::endl;
 
   //-- add an attribute "volume"
-  for (auto& co : j["CityObjects"]) {
+  for (auto& co : cj["CityObjects"]) {
     if (co["type"] == "Building") {
       co["attributes"]["volume"] = rand();
     }
@@ -82,31 +84,30 @@ int main(int argc, const char * argv[]) {
 
   //-- write to disk the modified city model (myfile.city.json)
   std::ofstream o("myfile.city.json");
-  o << j.dump(2) << std::endl;
+  o << cj.dump(2) << std::endl;
   o.close();
 
   return 0;
 }
 
 
+int read_input(std::string inputfile, json& cj) {
+    //-- reading the file with nlohmann json: https://github.com/nlohmann/json
+
+    std::cout << "Reading input file: " << inputfile << std::endl;
+
+    std::ifstream input(inputfile);
+    input >> cj;
+    input.close();
+
+    return 0;
+}
+
+
+
 // Visit every 'RoofSurface' in the CityJSON model and output its geometry (the arrays of indices)
 // Useful to learn to visit the geometry boundaries and at the same time check their semantics.
-void visit_roofsurfaces(json &j) {
-  for (auto& co : j["CityObjects"].items()) {
-    for (auto& g : co.value()["geometry"]) {
-      if (g["type"] == "Solid") {
-        for (int i = 0; i < g["boundaries"].size(); i++) {
-          for (int j = 0; j < g["boundaries"][i].size(); j++) {
-            int sem_index = g["semantics"]["values"][i][j];
-            if (g["semantics"]["surfaces"][sem_index]["type"].get<std::string>().compare("RoofSurface") == 0) {
-              std::cout << "RoofSurface: " << g["boundaries"][i][j] << std::endl;
-            }
-          }
-        }
-      }
-    }
-  }
-}
+
 
 
 // Returns the number of 'RooSurface' in the CityJSON model
