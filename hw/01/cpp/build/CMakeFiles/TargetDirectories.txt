@@ -1,0 +1,3 @@
+/mnt/c/dev/geo/geo1004/geo1004.2022/hw/01/cpp/build/CMakeFiles/rebuild_cache.dir
+/mnt/c/dev/geo/geo1004/geo1004.2022/hw/01/cpp/build/CMakeFiles/edit_cache.dir
+/mnt/c/dev/geo/geo1004/geo1004.2022/hw/01/cpp/build/CMakeFiles/hw01.dir

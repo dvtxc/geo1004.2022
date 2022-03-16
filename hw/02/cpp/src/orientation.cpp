@@ -14,7 +14,9 @@
 
 using json = nlohmann::json;
 
+#include "helper.h"
 #include "orientation.h"
+
 
 int orientation_run(json & j) {
     visit_roofsurfaces(j);
@@ -38,60 +40,84 @@ void visit_roofsurfaces(json &cj) {
                     // Go through all planar surfaces, iterate with j
                     for (int j = 0; j < g["boundaries"][i].size(); j++) {
 
+                        auto &surf = g["boundaries"][i][j];
+
                         // Get semantic index, retrieve with i,j
                         int sem_index = g["semantics"]["values"][i][j];
 
                         // Check if semantics > surfaces > [sem_index] > type == roofsurface
                         if (g["semantics"]["surfaces"][sem_index]["type"].get<std::string>().compare("RoofSurface") == 0) {
-                            std::cout << "RoofSurface: " << g["boundaries"][i][j] << std::endl;
+                            std::cout << "Boundary plane index: " << j << " = RoofSurface: " << g["boundaries"][i][j] << std::endl;
 
                             // take first three vertices of first ring
+                            /*
                             std::vector<double3> triangle(3);
                             for (size_t k = 0; k < 5; k += 2) {
                                 std::cout << "  -vtx: " << g["boundaries"][i][j][0][k].get<int>();
                                 triangle[k] = get_vtx_coordinates(cj, g["boundaries"][i][j][0][k].get<int>());
                                 std::cout << " (" << triangle[k][0] << ", " << triangle[k][1] << ", " << triangle[k][2] << ")" << std::endl;
                             }
-
-                            double4 plane = compute_plane(triangle[0], triangle[1], triangle[2]);
-
-                            std::string orientation = compute_orientation(plane);
-
-                            // Go through first ring
-                            /*
-                            for (auto& v : g["boundaries"][i][j][0]) {
-                                auto vi = v.get<int>();
-                                double3 vtxco = get_vtx_coordinates(cj, vi);
-                                std::cout << vtxco[0] << "," << vtxco[1] << "," << vtxco[2] << std::endl;
-                            }
                             */
 
-                            if (g["semantics"]["surfaces"][sem_index].contains("orientation")) {
-                                if (g["semantics"]["surfaces"][sem_index]["orientation"].get<std::string>().compare(orientation) == 0) {
-                                    // Orientation is stored and corresponds to current value
-                                    std::cout << " Orientation already stored for sem_index:" << sem_index << std::endl;
+                            // construct polygons as vector of double3 with actual coordinates (of first ring only)
+                            std::vector<double3> polygon = construct_poly(cj, surf[0]);
 
-                                } else {
-                                    // Orientation is stored, but current orientation differs. Create new semantic surface.
-                                    sem_index = g["semantics"]["surfaces"].size();
-                                    std::cout << " New orientation. New semantic surface with sem_index:" << sem_index << std::endl;
+                            // Compute plane equation
+                            double4 plane = compute_plane_from_polygon(polygon);
 
-                                    json new_surf_obj = {{"type", "Roofsurface"}, {"orientation", orientation}};
-                                    g["semantics"]["surfaces"].insert(g["semantics"]["surfaces"].end(), new_surf_obj);
-                                    g["semantics"]["values"][i][j] = sem_index;
+                            // Compute orientation of surface
+                            std::string orientation = compute_orientation(plane);
 
-                                }
-                            } else {
+
+
+                            // Write orientation --------------------------------------------------------
+                            // Check if orientation has already semantically been stored
+                            if (!g["semantics"]["surfaces"][sem_index].contains("orientation")) {
                                 // Orientation is not set. Create new key orientation.
 
                                 std::cout << " Orientation not set. New orientation." << std::endl;
                                 g["semantics"]["surfaces"][sem_index]["orientation"] = orientation;
+
+                            } else {
+
+                                bool found_elsewhere = false;
+
+                                // Check if orientation has already semantically been stored somewhere else
+                                for (auto &sem_surface: g["semantics"]["surfaces"].items()) {
+                                    if (sem_surface.value().contains("orientation")) {
+                                        if (sem_surface.value()["orientation"].get<std::string>().compare(orientation) == 0) {
+
+                                            // Semantic surface surface with same orientation has been found
+                                            sem_index = std::stoi(sem_surface.key());
+
+                                            std::cout << " Orientation " << orientation
+                                                      << " already stored for sem_index: " << sem_index << std::endl;
+
+                                            // Set current semantic reference to that object
+                                            g["semantics"]["values"][i][j] = sem_index;
+
+                                            found_elsewhere = true;
+                                            break;
+
+                                        }
+                                    }
+                                }
+
+                                if (found_elsewhere == false) {
+
+                                    // Current surface obj has different orientation. Same orientation has not been found elsewhere. Create new surface obj.
+                                    sem_index = g["semantics"]["surfaces"].size();
+                                    std::cout << " New orientation. New semantic surface with sem_index: " << sem_index
+                                              << std::endl;
+
+                                    json new_surf_obj = {{"type",        "RoofSurface"},
+                                                         {"orientation", orientation}};
+                                    g["semantics"]["surfaces"].insert(g["semantics"]["surfaces"].end(), new_surf_obj);
+                                    g["semantics"]["values"][i][j] = sem_index;
+                                }
+
                             }
-
-                            // Storing attribute orientation
-                            //g["semantics"]["surfaces"][sem_index]["orientation"] = orientation;
-
-                            //std::cout << g["semantics"]["surfaces"][sem_index]["orientation"].get<std::string>() << std::endl;
+                            // Write orientation END ----------------------------------------------------
 
                         }
                     }
@@ -101,23 +127,30 @@ void visit_roofsurfaces(json &cj) {
     }
 }
 
-// Get vertex coordinates
-double3 get_vtx_coordinates(json &j, int vertex) {
-    double3 vtx_co;
 
-    std::vector<int> vi = j["vertices"][vertex];
-    vtx_co[0] = (vi[0] * j["transform"]["scale"][0].get<double>()) + j["transform"]["translate"][0].get<double>();
-    vtx_co[1] = (vi[1] * j["transform"]["scale"][1].get<double>()) + j["transform"]["translate"][1].get<double>();
-    vtx_co[2] = (vi[2] * j["transform"]["scale"][2].get<double>()) + j["transform"]["translate"][2].get<double>();
 
-    return vtx_co;
-}
-
-// Get normal vector
+// Construct plane equation (with normal vector) based on three vertices (triangle)
 double4 compute_plane(double3 a, double3 b, double3 c) {
     // Compute a plane that intersects three points in space.
     double3 n = linalg::cross(b - a, c - a);
+
+    n = linalg::normalize(n);
+
     return {n, -linalg::dot(n, a)};
+}
+
+// Construct plane equation (with normal vector) based on mostly planar polygon vertices
+double4 compute_plane_from_polygon(std::vector<double3> pv) {
+
+    double3 n = {0,0,0};
+    for (int i = 1; i < pv.size(); i++) {
+        n += linalg::cross(pv[i-1], pv[i]);
+    }
+    n += linalg::cross(pv.back(), pv[0]);
+
+    n = linalg::normalize(n);
+
+    return {n, -linalg::dot(n, pv[0])};
 }
 
 std::string compute_orientation(double4 plane) {
@@ -130,10 +163,6 @@ std::string compute_orientation(double4 plane) {
 
     // Normalize
     double3 normnorm = linalg::normalize(plane_norm);
-
-    double3 up_vec = {0, 0, 1};
-    double3 dir_vec = {plane[0], plane[1], 0};
-    double3 north_vec = {0, 1, 0};
 
     //double dir_rad = atan2( linalg::dot(dir_vec, north_vec), linalg::dot(up_vec, linalg::cross(dir_vec, north_vec) ) );
     double dir_rad = atan2(normnorm[1], normnorm[0]);
@@ -168,3 +197,6 @@ std::string compute_orientation(double4 plane) {
 
     return orientation;
 }
+
+//void write_orientation(json& g, std::string orientation, int sem_index, int i, int j) {
+//}

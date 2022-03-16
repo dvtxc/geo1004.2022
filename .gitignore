@@ -1,13 +1,11 @@
 # Ignore everything
-*
+*.*
 
 # except
 !.gitignore
 !*.cpp
 !*.h
+!*.hpp
 !*.md
 !*.json
-
-# Specify filepatterns you want git to ignore.
-
-hw/02/cpp/build/*
+!*.txt

@@ -17,8 +17,10 @@ using double4 = linalg::aliases::double4;
 int orientation_run(json &j);
 
 void  visit_roofsurfaces(json &j);
-double3 get_vtx_coordinates(json &j, int vertex);
+//double3 get_vtx_coordinates(json &j, int vertex);
 double4 compute_plane(double3 a, double3 b, double3 c);
+double4 compute_plane_from_polygon(std::vector<double3> pv);
 std::string compute_orientation(double4 plane);
+//void write_orientation(json& g, std::string orientation, int sem_index, int i, int j)
 
 #endif //HW02_ORIENTATION_H
