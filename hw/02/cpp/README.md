@@ -25,6 +25,13 @@ The project driver code is contained by ``main.cpp``. The individual sub assignm
 
 ## Calculating the number of floors
 
+The calculations of the number of floors is relatively straightforward, as the building geometry does not need to be parsed. The building attributes already contain the properties ``h_dak_max`` (maximum roof height) and ``h_dak_min`` (minimum roof height / eave). For the ground surface elevation, the value of ``h_maaiveld`` can be taken. Taking the prescribed calculation method, the implementation in C++ looks as follows:
+```C++
+// Calculate number of floors
+double height = (0.7 * h_dak_max + 0.3 * h_dak_min) - h_maaiveld;
+int num_floors = (int) round(height / 3.0);
+```
+
 ## Roof Surface Orientation
 
 We traverse the surfaces, as given per example:
@@ -113,7 +120,15 @@ double calculate_polygon_area(std::vector<double3> polygon) {
 }
 ```
 
+First, the total surface area of the surface enclosed by the first (outer) ring is calculated. Consecutively, the area of all inner rings are subtracted.
 
+**Note:** *This assumes that the inner rings are all first-level holes of the outer ring. No check, whether the holes are higher-order holes, is performed.*
+
+### Storing semantic information
+
+When computing the RoofSurface orientation, a semantic object for every separate direction was created. Now it is possible to add the computed surface area to these semantic object nodes.
+
+First, the code performs a lookup (using the ``semantic id``) and checks, whether the surface already has a surface area property. If not, it adds the json object ``{area: [area]}``; if yes, it adds the currently computed surface area to the previously computed area.
 
 Downloaded json file.
 
