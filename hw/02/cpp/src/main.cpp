@@ -7,6 +7,7 @@ Dmitri Visser
 #include <string>
 #include "json.hpp"
 
+#include "numfloors.h"
 #include "orientation.h"
 #include "surfarea.h"
 
@@ -24,33 +25,12 @@ int main(int argc, const char * argv[]) {
     json cj;
 
     // Read the city json file
-    std::string inputfile = R"(../../data/clean.city.json)";
-    std::string outfile = R"(../../data/output.city.json)";
+    std::string inputfile = R"(/mnt/c/Dev/geo/geo1004.2022/hw/02/data/clean.city.json)";
+    std::string outfile = R"(/mnt/c/Dev/geo/geo1004.2022/hw/02/data/output_nminb.city.json)";
     read_input(inputfile, cj);
 
-    // Go through buildings and list h_dak props
-    for (auto &bldg : cj["CityObjects"]) {
-        if (bldg["type"] == "Building") {
-            std::cout << "Building " << (std::string) bldg["attributes"]["identificatie"];
-
-            if (bldg["children"].size() == 0) {
-                std::cout << " has no child geometry." << std::endl;
-                continue;
-            }
-
-            // Has child geometry
-            auto h_maaiveld = (double) bldg["attributes"]["h_maaiveld"];
-            auto h_dak_min = (double) bldg["attributes"]["h_dak_min"];
-            auto h_dak_max = (double) bldg["attributes"]["h_dak_max"];
-
-            // Calculate number of floors
-            double height = (0.7 * h_dak_max + 0.3 * h_dak_min) - h_maaiveld;
-            int num_floors = (int) round(height / 3.0);
-
-            std::cout << " - height: " << height << ", no_floor: " << num_floors << std::endl;
-        }
-    }
-
+    // Compute number of floors
+    numfloors_walk(cj);
 
     // Compute roof orientations
     orientation_run(cj);
